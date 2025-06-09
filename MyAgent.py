@@ -1,42 +1,55 @@
+# What I am trying to achieve here is for the race car to stay in the middle of the track. It should not drift closer to the walls. 
+# The way it works is by assigning a reward for each possible action.
+# I tried this approach as the actions are rewarded based on the sensors, and the action with the highest reward is chosen. 
+# It ensures safe and center-track driving. It also understands the walls and adjusts the speed.
+# It works for all tracks. It is better on bigger tracks and slightly slower on smaller tracks.
+
+
 import random
 
 class Agent:
     def __init__(self):
-        self.SAFE_DISTANCE = 1.0
-        self.TARGET_SPEED = 0.7
-        self.TURN_THRESHOLD = 0.3
-        
-    def chooseAction(self, observations, possibleActions):
+        self.safe_distance = 0.2
+        self.center_clear_low = 3.5
+        self.center_clear_high = 5.0
+        self.wall_soft = 0.1
+        self.wall_hard = 0.25
+        self.min_speed = 0.1
+        self.max_speed = 1.35
 
+    def chooseAction(self, observations, possible_actions):
         lidar = observations['lidar']
         velocity = observations['velocity']
-        observations['lidar'] = [float(f'{x:.2}') for x in lidar]
 
-        left45 = lidar[0]
-        left10 = lidar[1]
-        center = lidar[2]
-        right10 = lidar[3]
-        right45 = lidar[4]
-        
-        direction = 'straight'
-        if left45 < self.SAFE_DISTANCE or left10 < self.SAFE_DISTANCE:
-            direction = 'right'
-        elif right10 < self.SAFE_DISTANCE or right45 < self.SAFE_DISTANCE:
-            direction = 'left'
-        elif center < self.SAFE_DISTANCE * 1.5:
-            if left45 + left10 > right10 + right45:
-                direction = 'left'
-            else:
-                direction = 'right'
-        
-        speed = 'accelerate'
-        if velocity == 0:
-            speed = 'accelerate'
-        elif velocity > self.TARGET_SPEED:
-            speed = 'brake'
-        elif min(lidar) < self.SAFE_DISTANCE * 1.2:
-            speed = 'brake'
-        elif min(lidar) < self.SAFE_DISTANCE * 1.5:
-            speed = 'coast'
-            
-        return (direction, speed)
+        left, mid_left, center, mid_right, right = lidar
+        wall = left - right  # more space on left = positive, more space on right = negative
+
+        reward = {action: 0 for action in possible_actions}
+
+        if velocity < self.min_speed:
+            reward[('straight', 'accelerate')] += 10
+
+        if self.center_clear_low < center < self.center_clear_high:
+            reward[('straight', 'accelerate')] += 8
+
+        if left < self.safe_distance:
+            reward[('right', 'coast')] += 10
+        if right < self.safe_distance:
+            reward[('left', 'coast')] += 10
+
+        if wall > self.wall_hard:
+            reward[('left', 'brake')] += 8
+        elif wall > self.wall_soft:
+            reward[('left', 'accelerate')] += 5
+        elif wall < -self.wall_hard:
+            reward[('right', 'brake')] += 8
+        elif wall < -self.wall_soft:
+            reward[('right', 'accelerate')] += 5
+
+        if velocity >= self.max_speed:
+            reward[('straight', 'coast')] += 6
+
+        if not any(reward.values()):
+            return ('straight', 'coast')
+
+        return max(reward.items(), key=lambda x: x[1])[0]
