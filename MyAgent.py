@@ -1,5 +1,5 @@
 # What I am trying to achieve here is for the race car to stay in the middle of the track. It should not drift closer to the walls. 
-# The way it works is by assigning a reward for each possible action.
+# It works by assigning a reward for each possible action.
 # I tried this approach as the actions are rewarded based on the sensors, and the action with the highest reward is chosen. 
 # It ensures safe and center-track driving. It also understands the walls and adjusts the speed.
 # It works for all tracks. It is better on bigger tracks and slightly slower on smaller tracks.
